@@ -919,7 +919,7 @@ class InceptionV3(nn.Module):
         self,
         x: Tensor,
         aux: Optional[Tensor]
-    ) -> InceptionOutputs
+    ) -> InceptionOutputs:
         if self.training and self.aux_logtis:
             return InceptionOutputs(x, aux)
         else:
