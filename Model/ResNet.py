@@ -14,9 +14,8 @@ def conv3x3(
     stride: int = 1,
     groups: int = 1,
     dilation: int = 1,
-) -> nn.Conv2d:
-    """_summary_
-
+) -> nn.Conv2d: 
+    """
     Args:
         in_planes (int): input channels
         out_planes (int): output channels
@@ -43,8 +42,7 @@ def conv1x1(
     out_planes: int,
     stride: int = 1,
 ) -> nn.Conv2d:
-    """_summary_
-
+    """
     Args:
         in_planes (int): input channels
         out_planes (int): output channels
@@ -103,8 +101,8 @@ class BasicBlock(nn.Module):
         
         # Block 1
         self.conv1 = conv3x3(
-            in_channels=in_planes,
-            out_channels=out_planes,
+            in_planes=in_planes,
+            out_planes=out_planes,
             stride=stride
         )
         self.bn1 = norm_layer(out_planes)
@@ -112,8 +110,8 @@ class BasicBlock(nn.Module):
         
         # Block 2
         self.conv2 = conv3x3(
-            in_channels=out_planes,
-            out_channels=out_planes
+            in_planes=out_planes,
+            out_planes=out_planes
         )
         self.bn2 = norm_layer(out_planes)
         self.downsample = downsample
@@ -154,10 +152,10 @@ class Bottleneck(nn.Module):
     
     def __init__(
         self,
-        inplanes: int,
+        in_planes: int,
         out_planes: int,
         stride: int = 1,
-        donwsample: Optional[nn.Module] = None,
+        downsample: Optional[nn.Module] = None,
         groups: int = 1,
         base_width: int = 64,
         dilation: int = 1,
@@ -172,23 +170,23 @@ class Bottleneck(nn.Module):
 
         # Both self.conv2 and self.downsample layers downsample the input when stride != 1
         self.conv1 = conv1x1(
-            in_channels=inplanes,
-            out_channels=width
+            in_planes=in_planes,
+            out_planes=width
         )
         self.bn1 = norm_layer(width)
         
         self.conv2 = conv3x3(
-            in_channels=width, 
-            out_channels=width,
+            in_planes=width, 
+            out_planes=width,
             stride=stride,
             groups=groups,
-            diltation=dilation
+            dilation=dilation
         )
         self.bn2 = norm_layer(width)
         
         self.conv3 = conv1x1(
-            in_channels=width,
-            out_channels=out_planes * self.expansion
+            in_planes=width,
+            out_planes=out_planes * self.expansion
         )
         self.bn3 = norm_layer(width * self.expansion)
         self.relu = nn.ReLU(inplace=True)
@@ -235,7 +233,7 @@ class ResNet(nn.Module):
     def __init__(
         self,
         block: Type[Union[BasicBlock, Bottleneck]],
-        layers: List[int],
+        layers: List[int] = [3, 4, 6, 3],
         num_classes: int = 2,
         zero_init_residual: bool = False,
         groups: int = 1,
@@ -244,11 +242,11 @@ class ResNet(nn.Module):
         norm_layer: Optional[Callable[..., nn.Module]] = None
     ) -> None:
         super(ResNet, self).__init__()
-        
+        block = Bottleneck
         if norm_layer is None:
             norm_layer = nn.BatchNorm2d
         
-        self.norm_layer = norm_layer
+        self._norm_layer = norm_layer
         
         # Input channel
         self.in_planes = 64
@@ -269,7 +267,7 @@ class ResNet(nn.Module):
         self.base_width = width_per_group
         self.conv1 = nn.Conv2d(
             in_channels=3,
-            out_channels=self.in_planes,
+            out_channels=int(self.in_planes),
             kernel_size=7,
             stride=2,
             padding=3,
@@ -282,32 +280,33 @@ class ResNet(nn.Module):
             stride=2,
             padding=1
         )
-        self.layer1 = self._make_layer(
-            block=block,
-            in_planes=64,
-            layers=layers[0]
-        )
-        self.layer2 = self._make_layer(
-            block=block,
-            in_planes=128,
-            layers=layers[1],
-            stride=2,
-            dilate=replace_stride_with_dilation[0]
-        )
-        self.layer3 = self._make_layer(
-            block=block,
-            in_planes=256,
-            layers=layers[2],
-            stride=2,
-            dilate=replace_stride_with_dilation[1]
-        )
-        self.layer4 = self._make_layer(
-            block=block,
-            in_planes=512,
-            layers=layers[3],
-            stride=2,
-            dilate=replace_stride_with_dilation[2]
-        )
+        if len(layers) == 4:
+            self.layer1 = self._make_layer(
+                block=block,
+                planes=64,
+                blocks=layers[0]
+            )
+            self.layer2 = self._make_layer(
+                block=block,
+                planes=128,
+                blocks=layers[1],
+                stride=2,
+                dilate=replace_stride_with_dilation[0]
+            )
+            self.layer3 = self._make_layer(
+                block=block,
+                planes=256,
+                blocks=layers[2],
+                stride=2,
+                dilate=replace_stride_with_dilation[1]
+            )
+            self.layer4 = self._make_layer(
+                block=block,
+                planes=512,
+                blocks=layers[3],
+                stride=2,
+                dilate=replace_stride_with_dilation[2]
+            )
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         self.fc = nn.Linear(
             in_features=512 * block.expansion,
@@ -342,8 +341,7 @@ class ResNet(nn.Module):
     def _make_layer(
         self,
         block: Type[Union[BasicBlock, Bottleneck]],
-        in_planes: int,
-        out_planes: int,
+        planes: int,
         blocks: int,
         stride: int = 1,
         dilate: bool = False
@@ -357,36 +355,39 @@ class ResNet(nn.Module):
             self.dilation *= stride
             stride = 1
         
-        if stride != 1 or in_planes != out_planes * block.expansion:
+        if stride != 1 or self.in_planes != planes * block.expansion:
             downsample = nn.Sequential(
                 conv1x1(
-                    in_channels=in_planes,
-                    out_channels=out_planes * block.expansion,
+                    in_planes=self.in_planes,
+                    out_planes=planes * block.expansion,
                     stride=stride
                 ),
-                norm_layer(out_planes * block.expansion)
+                norm_layer(planes * block.expansion)
             )
         layers = []
         
         # Adding the first block
         layers.append(
             block(
-                in_planes=in_planes,
-                out_planes=out_planes,
+                in_planes=self.in_planes,
+                out_planes=planes,
+                stride=stride,
+                downsample=downsample,
                 groups=self.groups,
                 base_width=self.base_width,
-                dilation=self.dilation,
+                dilation=previous_dilation,
                 norm_layer=norm_layer,
                 
             )
         )
-    
+        
+        self.in_planes = planes * block.expansion
         # Adding the rest of the blocks
         for _ in range(1, blocks):
             layers.append(
                 block(
-                    in_planes=in_planes,
-                    out_planes=out_planes,
+                    in_planes=self.in_planes,
+                    out_planes=planes,
                     groups=self.groups,
                     base_width=self.base_width,
                     dilation=self.dilation,
@@ -396,7 +397,7 @@ class ResNet(nn.Module):
         
         return nn.Sequential(*layers)
 
-    def forward_impl(self, x: Tensor) -> Tensor:
+    def _forward_impl(self, x: Tensor) -> Tensor:
         
         # Block 1
         x = self.conv1(x)
@@ -418,4 +419,4 @@ class ResNet(nn.Module):
         return x
     
     def forward(self, x: Tensor) -> Tensor:
-        return self.forward_impl(x)
+        return self._forward_impl(x)
