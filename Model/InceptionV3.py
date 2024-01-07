@@ -941,14 +941,14 @@ class InceptionV3(nn.Module):
         x: Tensor,
         aux: Optional[Tensor]
     ) -> InceptionOutputs:
-        if self.training and self.aux_logtis:
+        if self.training and self.aux_logits:
             return InceptionOutputs(x, aux)
         else:
             return x # type: ignore return value
     
     def forward(self, x: Tensor) -> InceptionOutputs:
         x, aux = self._forward(x)
-        aux_defined = self.training and self.aux_logtis
+        aux_defined = self.training and self.aux_logits
         
         if torch.jit.is_scripting():
             if not aux_defined:
