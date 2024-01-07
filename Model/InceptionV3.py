@@ -733,7 +733,7 @@ class InceptionV3(nn.Module):
         inception_e = inception_blocks[5]   
         inception_aux = inception_blocks[6]
         
-        self.aux_logtis = aux_logits
+        self.aux_logits = aux_logits
         self.Conv2d_1a_3x3 = conv_block(
             in_channels=3,
             out_channels=32,
